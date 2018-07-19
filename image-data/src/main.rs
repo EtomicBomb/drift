@@ -12,7 +12,6 @@ use std::fs::{self, File};
 
 const LENGTH_PER_PART: usize = 3000;
 const CSV_NAME: &'static str = "sprites.csv";
-const CSV_FIELDS: [&'static str; 6] = ["sprite", "variant", "part", "width", "height", "data"];
 
 lazy_static! {
     // two formats: sprites/<sprite_name>.png or sprites/<sprite_name>_<variant>.png
@@ -22,20 +21,31 @@ lazy_static! {
 
 
 fn main() {
-    let mut csv_file = File::create(CSV_NAME).expect("Unable to create file");
+    let csv_file = File::create(CSV_NAME).expect("Unable to create file");
     let mut csv_wtr = Writer::from_writer(csv_file);
     
-    for entry in fs::read_dir("sprites").expect("No directory sprites") {
-        let path = entry.unwrap().path();
-        let sprite_filename = path.to_str().unwrap();
-        println!("{}", sprite_filename);
+    for sprite_filename in read_directory_sorted("sprites") {
         // get the stuff that needs to be serielized into the csv file
-        let sprite_parts = SpritePart::parts(sprite_filename);
+        println!("Reading {}", sprite_filename);
+        let sprite_parts = SpritePart::parts(&sprite_filename);
         
         for sprite_part in sprite_parts {
             csv_wtr.serialize(sprite_part).expect("Couldn't serialize");
         }
     }
+}
+
+fn read_directory_sorted(dir_name: &str) -> Vec<String> {
+    // returns a sorted list of all of the files in the dircetory
+    let iter = fs::read_dir(dir_name).expect("Couldn't read directory");
+    let mut vec = iter
+        .map(|entry| {
+            let path = entry.unwrap().path();
+            path.to_str().unwrap().to_owned()
+        }).collect::<Vec<String>>();
+        
+    vec.sort();
+    vec
 }
 
 #[derive(Debug, Serialize)]
@@ -61,14 +71,14 @@ impl SpritePart {
         let pieces = chunks(&string_form, LENGTH_PER_PART);
         
         let mut sprites = Vec::new();
-        for (piece, part) in pieces.iter().zip(0..) {
+        for (piece, part) in pieces.into_iter().zip(0..) {
             sprites.push(SpritePart {
                 sprite: sprite.clone(),
                 variant,
                 part,
                 width,
                 height,
-                data: (*piece).to_owned(),
+                data: piece,
             });
         }
         
@@ -77,21 +87,11 @@ impl SpritePart {
 }
 
 
-fn chunks(string: &str, size: usize) -> Vec<&str> {
-    // splits string into several pieces who's size doesn't exceed size
-    
-    let mut cs = Vec::new();
-    let mut string = string;
-    
-    while string.len() >= size {
-        let (c1, c2) = string.split_at(size);
-        cs.push(c1);
-        string = c2;
-    }
-    
-    if string.len() != 0 { cs.push(string) }
-    cs
+fn chunks(string: &str, size: usize) -> Vec<String> {
+    let vec = string.chars().collect::<Vec<char>>();
+    (&vec).chunks(size).map(|chunk| chunk.iter().collect::<String>()).collect()
 }
+
 
 fn parse_filename(filename: &str) -> (String, u32) {
     let captures = SPRITE_DATA.captures(filename).expect("Bad sprite name");
