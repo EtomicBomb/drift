@@ -13,7 +13,7 @@ use csv::Writer;
 use std::fs::{self, File};
 use std::fmt::Debug;
 
-const LENGTH_PER_PART: usize = 1000;
+const LENGTH_PER_PART: usize = 4000;
 const CSV_NAME: &'static str = "sprites.csv";
 
 lazy_static! {
@@ -69,7 +69,8 @@ impl SpritePart {
         let (rgba, width, height) = get_rgba(filename);
         
         // split up the imageData into multiple pices
-        let pieces = chunks(&rgba, LENGTH_PER_PART);
+        let string_form = stringify(rgba);
+        let pieces = chunks(&string_form, LENGTH_PER_PART);
         
         let mut sprites = Vec::new();
         for (piece, part) in pieces.into_iter().zip(0..) {
@@ -87,20 +88,18 @@ impl SpritePart {
     }
 }
 
-fn chunks(vec: &[u8], size: usize) -> Vec<String> {
-    vec
-        .chunks(size)
-        .map(|chunk| stringify(chunk.iter().cloned()))
-        .collect()
+fn chunks(string: &str, size: usize) -> Vec<String> {
+    let vec = string.chars().collect::<Vec<char>>();
+    (&vec).chunks(size).map(|chunk| chunk.iter().collect::<String>()).collect()
 }
 
-fn stringify<T: Debug>(iter: impl Iterator<Item=T>) -> String {
-    let mut string = String::from("\"[");
-    for item in iter {
+fn stringify<T: Debug>(vec: Vec<T>) -> String {
+    let mut string = String::from("[");
+    for item in vec {
         string += &format!("{:?},", item);
     }
     string.pop(); // remove the last comma
-    string += "]\"";
+    string += "]";
     string
 }
 
