@@ -10,15 +10,13 @@ use csv::Writer;
 
 use std::fs::{self, File};
 
-const LENGTH_PER_PART: usize = 3000;
+const LENGTH_PER_PART: usize = 4000;
 const CSV_NAME: &'static str = "sprites.csv";
 
 lazy_static! {
     // two formats: sprites/<sprite_name>.png or sprites/<sprite_name>_<variant>.png
-    static ref SPRITE_DATA: Regex = Regex::new(r"sprites/([a-zA-Z]+)(#([0-9]+))?\.png").unwrap();
+    static ref SPRITE_DATA: Regex = Regex::new(r"sprites/(\w+)(#(\d+))?\.png").unwrap();
 }
-
-
 
 fn main() {
     let csv_file = File::create(CSV_NAME).expect("Unable to create file");
@@ -89,7 +87,10 @@ impl SpritePart {
 
 fn chunks(string: &str, size: usize) -> Vec<String> {
     let vec = string.chars().collect::<Vec<char>>();
-    (&vec).chunks(size).map(|chunk| chunk.iter().collect::<String>()).collect()
+    (&vec)
+        .chunks(size)
+        .map(|chunk| chunk.iter().collect::<String>())
+        .collect()
 }
 
 
