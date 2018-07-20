@@ -1,3 +1,5 @@
+#![feature(universal_impl_trait)]
+#![allow(non_camel_case_types)] // to get rid of the weird impl Iter warning
 extern crate png;
 extern crate regex;
 use regex::Regex;
@@ -9,8 +11,9 @@ use csv::Writer;
 #[macro_use] extern crate serde_derive;
 
 use std::fs::{self, File};
+use std::fmt::Debug;
 
-const LENGTH_PER_PART: usize = 4000;
+const LENGTH_PER_PART: usize = 1000;
 const CSV_NAME: &'static str = "sprites.csv";
 
 lazy_static! {
@@ -26,7 +29,6 @@ fn main() {
         // get the stuff that needs to be serielized into the csv file
         println!("Reading {}", sprite_filename);
         let sprite_parts = SpritePart::parts(&sprite_filename);
-        
         for sprite_part in sprite_parts {
             csv_wtr.serialize(sprite_part).expect("Couldn't serialize");
         }
@@ -63,10 +65,9 @@ impl SpritePart {
         
         // figure out the data from the actual file
         let (rgba, width, height) = get_rgba(filename);
-        let string_form = stringify(&rgba);
         
         // split up the imageData into multiple pices
-        let pieces = chunks(&string_form, LENGTH_PER_PART);
+        let pieces = chunks(&rgba, LENGTH_PER_PART);
         
         let mut sprites = Vec::new();
         for (piece, part) in pieces.into_iter().zip(0..) {
@@ -84,15 +85,22 @@ impl SpritePart {
     }
 }
 
-
-fn chunks(string: &str, size: usize) -> Vec<String> {
-    let vec = string.chars().collect::<Vec<char>>();
-    (&vec)
+fn chunks(vec: &[u8], size: usize) -> Vec<String> {
+    vec
         .chunks(size)
-        .map(|chunk| chunk.iter().collect::<String>())
+        .map(|chunk| stringify(chunk.iter().cloned()))
         .collect()
 }
 
+fn stringify<T: Debug>(iter: impl Iterator<Item=T>) -> String {
+    let mut string = String::from("\"[");
+    for item in iter {
+        string += &format!("{:?},", item);
+    }
+    string.pop(); // remove the last comma
+    string += "]\"";
+    string
+}
 
 fn parse_filename(filename: &str) -> (String, u32) {
     let captures = SPRITE_DATA.captures(filename).expect("Bad sprite name");
@@ -106,18 +114,6 @@ fn parse_filename(filename: &str) -> (String, u32) {
     (sprite_name, variant)
 }
 
-
-fn stringify(rgba: &[u8]) -> String {
-    rgba.iter()
-        .map(|&byte| byte_to_char(byte))
-        .collect()
-}
-
-fn byte_to_char(byte: u8) -> char {
-    // compress byte into a character between 0x5d to 0xff
-    // this is lossy; we'll end up with ~22 bit colors
-    (byte as f32 * (162.0/255.0) + 93.0).floor() as u8 as char
-}
 
 fn get_rgba(filename: &str) -> (Vec<u8>, u32, u32) {
     let decoder = png::Decoder::new(File::open(filename).unwrap());
