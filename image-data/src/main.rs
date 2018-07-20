@@ -44,7 +44,9 @@ fn read_directory_sorted(dir_name: &str) -> Vec<String> {
             path.to_str().unwrap().to_owned()
         }).collect::<Vec<String>>();
         
-    vec.sort();
+    vec.sort_by(|a, b| {
+        parse_filename(a).cmp(&parse_filename(b))
+    });
     vec
 }
 
