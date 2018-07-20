@@ -1,25 +1,26 @@
+var TAU = 2*Math.PI;
+
 var sprites = {};
 var index = 0;
 
-function parseImageData(records) {
+function loadSprites(records) {
   sprites = {};
   var variants = [];
-  var imageDataData = [];
+  var imageDataData = "";
 
   for (var i=0; i<records.length; i++) {
     var curr = records[i];
     var next = i+1<records.length ? records[i+1] : null;
 
-    var data = JSON.parse(records[i].data);
-    Array.prototype.push.apply(imageDataData, data);
+    imageDataData += records[i].data;
 
     if (next === null || curr.variant != next.variant) {
       variants.push({
         width: curr.width,
         height: curr.height,
-        data: imageDataData,
+        data: JSON.parse(imageDataData),
       });
-      imageDataData = [];
+      imageDataData = "";
     }
     
     if (next === null || curr.sprite != next.sprite) {
@@ -30,23 +31,135 @@ function parseImageData(records) {
 }
 
 readRecords("sprites", {}, function(records) {
-  var start = getTime();
-  parseImageData(records);
-  console.log(getTime()-start);
-  createCanvas("canvas", 50, 50);
+  loadSprites(records);
+  // draw the background
+  createCanvas("canvas", 320, 450);
   setActiveCanvas("canvas");
+  setFillColor("#020C5A");
+  circle(0,0,1000);
+  setFillColor("white");
+  for (var i=0; i<50; i++) {
+    circle(randomNumber(0,320), randomNumber(0, 450), 2);
+  }
   
-  console.log("ready");
+  var arrow = new Arrow();
   
+  timedLoop(50, function() {
+    arrow.step();
+  });
+
   onEvent("screen1", "keydown", function(event) {
-    if (event.key == " " && index < sprites.arrow.length) {
-      clearCanvas();
-      putImageData(sprites.arrow[index], 0, 0);
-      index++;
+    if (event.key == "a") {
+      arrow.rotate(TAU/20);
+    } else if (event.key == "e") {
+      arrow.rotate(-TAU/20);
+    } else if (event.key == ",") {
+      // pulse forward
+      arrow.vx += Math.cos(arrow.theta);
+      arrow.vy -= Math.sin(arrow.theta);
+    } else if (event.key == "o") {
+      // pulse backwards
+      arrow.vx -= Math.cos(arrow.theta);
+      arrow.vy += Math.sin(arrow.theta);
     }
   });
-  
-  
 });
 
+function Arrow() {
+  this.x = 160;
+  this.y = 225;
+  
+  this.theta = 0;
+  this.vx = 0; 
+  this.vy = 0;
+  
+  this.arrow;
+  
+  this.step = function() {
+    this.x += this.vx;
+    if (this.x > 320) this.x = 0;
+    if (this.x < 0) this.x = 320;
+    this.y += this.vy;
+    if (this.y > 450) this.y = 0;
+    if (this.y < 0) this.y = 450;
+    this.arrow.setPosition(this.x, this.y);
+  };
+  
+  this.rotate = function(dTheta) {
+    this.theta += dTheta;
+    this.theta %= TAU;
+    if (this.theta < 0) this.theta += TAU;
+    
+    var variantCount = this.arrow.maxVariant()+1;
+    var variant = (this.theta * (variantCount/TAU))|0;
+    this.arrow.setVariant(variant);
+  };
+  
+  this.init = function() {
+    this.arrow = new Sprite("arrow", 0, this.x, this.y);
+    this.rotate(0);
+    this.arrow.show();
+  };
+  
+  this.init();
+}
 
+function Sprite(sprite, variant, x, y) {
+  this.spriteName = sprite;
+  this.variant = variant == null ? 0 : variant;
+  this.x = x == null ? 0 : x;
+  this.y = y == null ? 0 : y;
+  
+  this.canvasID;
+  this.imageData;
+  
+  this.show = function() {
+    showElement(this.canvasID);
+  };
+  this.hide = function() {
+    hideElement(this.canvasID);
+  };
+  this.delete = function() {
+    deleteElement(this.canvasID);
+  };
+  
+  this.getPosition = function() {
+    return [this.x, this.y];
+  };
+
+  this.setPosition = function(newX, newY) {
+    this.x = newX;
+    this.y = newY;
+    
+    var realX = this.x - this.imageData.width/2;
+    var realY = this.y - this.imageData.height/2;
+    setPosition(this.canvasID, realX, realY);
+  };
+  
+  this.getVariant = function() {
+    return this.variant;
+  };
+  
+  this.setVariant = function(newVariant) {
+    this.variant = newVariant;
+    this.imageData = sprites[this.spriteName][this.variant];
+    setActiveCanvas(this.canvasID);
+    putImageData(this.imageData, 0, 0);
+  };
+  
+  this.maxVariant = function() {
+    return sprites[this.spriteName].length-1;
+  };
+  
+  this.init = function() {
+    this.canvasID = randomNumber(0, 999999999).toString();
+    createCanvas(this.canvasID);
+    this.hide();
+    setStyle(this.canvasID, "z-index: 999"); // put it on the top
+    this.setVariant(this.variant);
+    
+    this.setPosition(this.x, this.y);
+  };
+  
+  this.init();
+}
