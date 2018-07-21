@@ -55,12 +55,15 @@ readRecords("sprites", {}, function(records) {
       arrow.rotate(-TAU/20);
     } else if (event.key == ",") {
       // pulse forward
-      arrow.vx += Math.cos(arrow.theta);
-      arrow.vy -= Math.sin(arrow.theta);
-    } else if (event.key == "o") {
-      // pulse backwards
-      arrow.vx -= Math.cos(arrow.theta);
-      arrow.vy += Math.sin(arrow.theta);
+      arrow.vx += 5*Math.cos(arrow.theta);
+      arrow.vy -= 5*Math.sin(arrow.theta);
+      
+      // set a limit on the velocity
+      var vMag = Math.sqrt(arrow.vx*arrow.vx + arrow.vy*arrow.vy);
+      if (vMag > 15) {
+        arrow.vx *= 15/vMag;
+        arrow.vy *= 15/vMag;
+      }
     }
   });
 });
@@ -111,7 +114,9 @@ function Sprite(sprite, variant, x, y) {
   this.y = y == null ? 0 : y;
   
   this.canvasID;
-  this.imageData;
+  this.variants;
+  this.halfWidth;
+  this.halfHeight;
   
   this.show = function() {
     showElement(this.canvasID);
@@ -131,8 +136,8 @@ function Sprite(sprite, variant, x, y) {
     this.x = newX;
     this.y = newY;
     
-    var realX = this.x - this.imageData.width/2;
-    var realY = this.y - this.imageData.height/2;
+    var realX = this.x - this.halfWidth;
+    var realY = this.y - this.halfHeight;
     setPosition(this.canvasID, realX, realY);
   };
   
@@ -142,9 +147,11 @@ function Sprite(sprite, variant, x, y) {
   
   this.setVariant = function(newVariant) {
     this.variant = newVariant;
-    this.imageData = sprites[this.spriteName][this.variant];
+    var data = sprites[this.spriteName][this.variant];
+    this.halfWidth = data.width/2;
+    this.halfHeight = data.height/2;
     setActiveCanvas(this.canvasID);
-    putImageData(this.imageData, 0, 0);
+    putImageData(data, 0, 0);
   };
   
   this.maxVariant = function() {
@@ -157,7 +164,6 @@ function Sprite(sprite, variant, x, y) {
     this.hide();
     setStyle(this.canvasID, "z-index: 999"); // put it on the top
     this.setVariant(this.variant);
-    
     this.setPosition(this.x, this.y);
   };
   
