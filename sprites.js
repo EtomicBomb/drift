@@ -1,33 +1,6 @@
 var TAU = 2*Math.PI;
-var g;
 
-
-function loadSprites(records) {
-  sprites = {};
-  var imageDataData = "";
-
-  for (var i=0; i<records.length; i++) {
-    var curr = records[i];
-    var next = i+1<records.length ? records[i+1] : null;
-
-    imageDataData += records[i].data;
-
-    if (next === null || curr.sprite != next.sprite) {
-      sprites[curr.sprite] = {
-        width: curr.width,
-        height: curr.height,
-        data: JSON.parse(imageDataData),
-      };
-      imageDataData = "";
-    }
-  }
-}
-
-
-var sprites = {};
-readRecords("sprites", {}, function(records) {
-  loadSprites(records);
-  
+function onLoad() {
   createCanvas("canvas", 320, 450);
   setActiveCanvas("canvas");
   setFillColor("#020C5A");
@@ -50,8 +23,8 @@ readRecords("sprites", {}, function(records) {
       arrow.rotate(-TAU/10);
     } else if (event.key == ",") {
       // pulse forward
-      arrow.vx += 5*Math.cos(arrow.theta);
-      arrow.vy -= 5*Math.sin(arrow.theta);
+      arrow.vx += 3*Math.cos(arrow.theta);
+      arrow.vy -= 3*Math.sin(arrow.theta);
       
       // set a limit on the velocity
       var vMag = Math.sqrt(arrow.vx*arrow.vx + arrow.vy*arrow.vy);
@@ -61,12 +34,7 @@ readRecords("sprites", {}, function(records) {
       }
     }
   });
-});
-
-
-
-
-
+}
 
 function Arrow() {
   this.x = 160;
@@ -94,13 +62,34 @@ function Arrow() {
   };
   
   this.init = function() {
-    this.arrow = new Sprite("arrow", 0, this.x, this.y);
+    this.arrow = new Sprite("arrow", this.x, this.y);
     this.arrow.show();
   };
   
   this.init();
 }
 
+
+
+var sprites = {};
+readRecords("sprites", {}, function(records) {
+  sprites = {};
+  var json = "";
+
+  for (var i=0; i<records.length; i++) {
+    var curr = records[i];
+    var next = i+1<records.length ? records[i+1] : null;
+
+    json += records[i].data;
+
+    if (next === null || curr.name != next.name) {
+      sprites[curr.name] = JSON.parse(json);
+      json = "";
+    }
+  }
+  
+  onLoad();
+});
 
 function Sprite(spriteName, x, y) {
   this.x = x == null ? 0 : x;
@@ -138,7 +127,6 @@ function Sprite(spriteName, x, y) {
   };
   
   this.setAngle = function(newAngle) {
-    console.log(this.angle);
     this.angle = newAngle; 
     setStyle(this.id, "transform: rotate("+ (-this.angle) +"rad);");
   };
