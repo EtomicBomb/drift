@@ -17,8 +17,8 @@ const LENGTH_PER_PART: usize = 4000;
 const CSV_NAME: &'static str = "sprites.csv";
 
 lazy_static! {
-    // two formats: sprites/<sprite_name>.png or sprites/<sprite_name>_<variant>.png
-    static ref SPRITE_DATA: Regex = Regex::new(r"sprites/(\w+)(#(\d+))?\.png").unwrap();
+    // two formats: sprites/<sprite_name>.png or sprites/<sprite_name>.png
+    static ref SPRITE_DATA: Regex = Regex::new(r"sprites/(\w+)\.png").unwrap();
 }
 
 fn main() {
@@ -44,16 +44,13 @@ fn read_directory_sorted(dir_name: &str) -> Vec<String> {
             path.to_str().unwrap().to_owned()
         }).collect::<Vec<String>>();
         
-    vec.sort_by(|a, b| {
-        parse_filename(a).cmp(&parse_filename(b))
-    });
+    vec.sort();
     vec
 }
 
 #[derive(Debug, Serialize)]
 struct SpritePart {
     sprite: String,
-    variant: u32,
     part: u32,
     width: u32,
     height: u32,
@@ -62,8 +59,8 @@ struct SpritePart {
 
 impl SpritePart {
     fn parts(filename: &str) -> Vec<SpritePart> {
-        // get the variant by looking at the filename
-        let (sprite, variant) = parse_filename(filename);
+        // extract the sprite name from the filename
+        let sprite = sprite_name_from_filename(filename);
         
         // figure out the data from the actual file
         let (rgba, width, height) = get_rgba(filename);
@@ -76,7 +73,6 @@ impl SpritePart {
         for (piece, part) in pieces.into_iter().zip(0..) {
             sprites.push(SpritePart {
                 sprite: sprite.clone(),
-                variant,
                 part,
                 width,
                 height,
@@ -103,16 +99,10 @@ fn stringify<T: Debug>(vec: Vec<T>) -> String {
     string
 }
 
-fn parse_filename(filename: &str) -> (String, u32) {
+fn sprite_name_from_filename(filename: &str) -> String {
     let captures = SPRITE_DATA.captures(filename).expect("Bad sprite name");
     
-    let sprite_name = captures[1].to_owned();
-    let variant = match captures.get(3) {
-        Some(m) => m.as_str().parse().unwrap(),
-        None => 0,
-    };
-    
-    (sprite_name, variant)
+    captures[1].to_owned()
 }
 
 
