@@ -1,11 +1,9 @@
 var TAU = 2*Math.PI;
+var g;
 
-var sprites = {};
-var index = 0;
 
 function loadSprites(records) {
   sprites = {};
-  var variants = [];
   var imageDataData = "";
 
   for (var i=0; i<records.length; i++) {
@@ -14,25 +12,22 @@ function loadSprites(records) {
 
     imageDataData += records[i].data;
 
-    if (next === null || curr.variant != next.variant) {
-      variants.push({
+    if (next === null || curr.sprite != next.sprite) {
+      sprites[curr.sprite] = {
         width: curr.width,
         height: curr.height,
         data: JSON.parse(imageDataData),
-      });
+      };
       imageDataData = "";
-    }
-    
-    if (next === null || curr.sprite != next.sprite) {
-      sprites[curr.sprite] = variants;
-      variants = [];
     }
   }
 }
 
+
+var sprites = {};
 readRecords("sprites", {}, function(records) {
   loadSprites(records);
-  // draw the background
+  
   createCanvas("canvas", 320, 450);
   setActiveCanvas("canvas");
   setFillColor("#020C5A");
@@ -50,9 +45,9 @@ readRecords("sprites", {}, function(records) {
 
   onEvent("screen1", "keydown", function(event) {
     if (event.key == "a") {
-      arrow.rotate(TAU/20);
+      arrow.rotate(TAU/10);
     } else if (event.key == "e") {
-      arrow.rotate(-TAU/20);
+      arrow.rotate(-TAU/10);
     } else if (event.key == ",") {
       // pulse forward
       arrow.vx += 5*Math.cos(arrow.theta);
@@ -67,6 +62,11 @@ readRecords("sprites", {}, function(records) {
     }
   });
 });
+
+
+
+
+
 
 function Arrow() {
   this.x = 160;
@@ -90,42 +90,36 @@ function Arrow() {
   
   this.rotate = function(dTheta) {
     this.theta += dTheta;
-    this.theta %= TAU;
-    if (this.theta < 0) this.theta += TAU;
-    
-    var variantCount = this.arrow.maxVariant()+1;
-    var variant = (this.theta * (variantCount/TAU))|0;
-    this.arrow.setVariant(variant);
+    this.arrow.setAngle(this.theta);
   };
   
   this.init = function() {
     this.arrow = new Sprite("arrow", 0, this.x, this.y);
-    this.rotate(0);
     this.arrow.show();
   };
   
   this.init();
 }
 
-function Sprite(sprite, variant, x, y) {
-  this.spriteName = sprite;
-  this.variant = variant == null ? 0 : variant;
+
+function Sprite(spriteName, x, y) {
   this.x = x == null ? 0 : x;
   this.y = y == null ? 0 : y;
   
-  this.canvasID;
-  this.variants;
+  this.id;
   this.halfWidth;
   this.halfHeight;
+
+  this.angle = 0;
   
   this.show = function() {
-    showElement(this.canvasID);
+    showElement(this.id);
   };
   this.hide = function() {
-    hideElement(this.canvasID);
+    hideElement(this.id);
   };
   this.delete = function() {
-    deleteElement(this.canvasID);
+    deleteElement(this.id);
   };
   
   this.getPosition = function() {
@@ -136,36 +130,38 @@ function Sprite(sprite, variant, x, y) {
     this.x = newX;
     this.y = newY;
     
-    var realX = this.x - this.halfWidth;
-    var realY = this.y - this.halfHeight;
-    setPosition(this.canvasID, realX, realY);
+    setPosition(this.id, this.x-this.halfWidth, this.y-this.halfHeight);
   };
   
-  this.getVariant = function() {
-    return this.variant;
+  this.getAngle = function() {
+    return this.angle;
   };
   
-  this.setVariant = function(newVariant) {
-    this.variant = newVariant;
-    var data = sprites[this.spriteName][this.variant];
-    this.halfWidth = data.width/2;
-    this.halfHeight = data.height/2;
-    setActiveCanvas(this.canvasID);
-    putImageData(data, 0, 0);
+  this.setAngle = function(newAngle) {
+    console.log(this.angle);
+    this.angle = newAngle; 
+    setStyle(this.id, "transform: rotate("+ (-this.angle) +"rad);");
   };
   
-  this.maxVariant = function() {
-    return sprites[this.spriteName].length-1;
-  };
-  
-  this.init = function() {
-    this.canvasID = randomNumber(0, 999999999).toString();
-    createCanvas(this.canvasID);
+  this.init = function(spriteName) {
+    // read data about the canvas
+    this.id = randomNumber(0, 999999999).toString();
+    var spriteData = sprites[spriteName];
+    this.halfWidth = spriteData.width/2;
+    this.halfHeight = spriteData.height/2;
+
+    // create the canvas
+    createCanvas(this.id, spriteData.width, spriteData.height);
     this.hide();
-    setStyle(this.canvasID, "z-index: 999"); // put it on the top
-    this.setVariant(this.variant);
+    
+    // set up attributes about the canvas
+    setStyle(this.id, "z-index: 999;"); // put it on the top
     this.setPosition(this.x, this.y);
+    
+    // actually draw the data to the screen
+    setActiveCanvas(this.id);
+    putImageData(spriteData, 0, 0);
   };
   
-  this.init();
+  this.init(spriteName);
 }
