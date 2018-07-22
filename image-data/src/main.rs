@@ -11,9 +11,9 @@ use csv::Writer;
 #[macro_use] extern crate serde_derive;
 
 use std::fs::{self, File};
-use std::fmt::Debug;
+use std::fmt;
 
-const LENGTH_PER_PART: usize = 4000;
+const LENGTH_PER_PART: usize = 4050;
 const CSV_NAME: &'static str = "sprites.csv";
 
 lazy_static! {
@@ -28,9 +28,9 @@ fn main() {
     for sprite_filename in read_directory_sorted("sprites") {
         // get the stuff that needs to be serielized into the csv file
         println!("Reading {}", sprite_filename);
-        let sprite_parts = SpritePart::parts(&sprite_filename);
-        for sprite_part in sprite_parts {
-            csv_wtr.serialize(sprite_part).expect("Couldn't serialize");
+        let parts = ImageDataPart::parts(&sprite_filename);
+        for part in parts {
+            csv_wtr.serialize(part).expect("Couldn't serialize");
         }
     }
 }
@@ -49,47 +49,68 @@ fn read_directory_sorted(dir_name: &str) -> Vec<String> {
 }
 
 #[derive(Debug, Serialize)]
-struct SpritePart {
-    sprite: String,
-    part: u32,
-    width: u32,
-    height: u32,
+struct ImageDataPart {
+    name: String,
     data: String,
 }
 
-impl SpritePart {
-    fn parts(filename: &str) -> Vec<SpritePart> {
+impl ImageDataPart {
+    fn new(name: String, data: String) -> ImageDataPart {
+        ImageDataPart { name, data }
+    }
+    
+    fn parts(filename: &str) -> Vec<ImageDataPart> {
         // extract the sprite name from the filename
-        let sprite = sprite_name_from_filename(filename);
+        let sprite_name = sprite_name_from_filename(filename);
         
         // figure out the data from the actual file
         let (rgba, width, height) = get_rgba(filename);
+        let image_data = ImageData::new(width, height, rgba);
         
         // split up the imageData into multiple pices
-        let string_form = stringify(rgba);
-        let pieces = chunks(&string_form, LENGTH_PER_PART);
-        
-        let mut sprites = Vec::new();
-        for (piece, part) in pieces.into_iter().zip(0..) {
-            sprites.push(SpritePart {
-                sprite: sprite.clone(),
-                part,
-                width,
-                height,
-                data: piece,
-            });
-        }
-        
-        sprites
+        image_data
+            .chunks(LENGTH_PER_PART).into_iter()
+            .map(|chunk| ImageDataPart::new(sprite_name.clone(), chunk))
+            .collect()
     }
 }
 
-fn chunks(string: &str, size: usize) -> Vec<String> {
-    let vec = string.chars().collect::<Vec<char>>();
-    (&vec).chunks(size).map(|chunk| chunk.iter().collect::<String>()).collect()
+struct ImageData {
+    width: u32,
+    height: u32,
+    data: Vec<u8>,
 }
 
-fn stringify<T: Debug>(vec: Vec<T>) -> String {
+impl ImageData {
+    fn new(width: u32, height: u32, data: Vec<u8>) -> ImageData {
+        ImageData { width, height, data }
+    }
+    
+    fn chunks(&self, chunk_size: usize) -> Vec<String> {
+        let string = format!("{}", self);
+        (&string
+            .chars()
+            .collect::<Vec<char>>())
+            .chunks(chunk_size)
+            .map(|chunk| chunk.iter().collect::<String>())
+            .collect()
+    }
+}
+
+impl fmt::Display for ImageData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // outputs ImageData as JSON with no whitespace
+        write!(f, "{{\"width\":{},\"height\":{},\"data\":{}}}", 
+            &self.width.to_string(),
+            &self.height.to_string(),
+            &stringify(self.data.clone()),
+        )
+    }
+}
+
+
+
+fn stringify<T: fmt::Debug>(vec: Vec<T>) -> String {
     let mut string = String::from("[");
     for item in vec {
         string += &format!("{:?},", item);
