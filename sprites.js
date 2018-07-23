@@ -1,40 +1,42 @@
+var SPRITE_SIZES = {arrow:[50,50], gradient:[50,50]};
+
 var TAU = 2*Math.PI;
 
-function onLoad() {
-  createCanvas("canvas", 320, 450);
-  setActiveCanvas("canvas");
-  setFillColor("#020C5A");
-  circle(0,0,1000);
-  setFillColor("white");
-  for (var i=0; i<50; i++) {
-    circle(randomNumber(0,320), randomNumber(0, 450), 2);
-  }
-  
-  var arrow = new Arrow();
-  
-  timedLoop(50, function() {
-    arrow.step();
-  });
-
-  onEvent("screen1", "keydown", function(event) {
-    if (event.key == "a") {
-      arrow.rotate(TAU/10);
-    } else if (event.key == "e") {
-      arrow.rotate(-TAU/10);
-    } else if (event.key == ",") {
-      // pulse forward
-      arrow.vx += 3*Math.cos(arrow.theta);
-      arrow.vy -= 3*Math.sin(arrow.theta);
-      
-      // set a limit on the velocity
-      var vMag = Math.sqrt(arrow.vx*arrow.vx + arrow.vy*arrow.vy);
-      if (vMag > 15) {
-        arrow.vx *= 15/vMag;
-        arrow.vy *= 15/vMag;
-      }
-    }
-  });
+createCanvas("canvas", 320, 450);
+setActiveCanvas("canvas");
+setFillColor("#020C5A");
+circle(0,0,1000);
+setFillColor("white");
+for (var i=0; i<50; i++) {
+  circle(randomNumber(0,320), randomNumber(0, 450), 2);
 }
+
+
+var arrow = new Arrow();
+
+timedLoop(50, function() {
+  arrow.step();
+});
+
+onEvent("screen1", "keydown", function(event) {
+  if (event.key == "a") {
+    arrow.rotate(TAU/10);
+  } else if (event.key == "e") {
+    arrow.rotate(-TAU/10);
+  } else if (event.key == ",") {
+    // pulse forward
+    arrow.vx += 3*Math.cos(arrow.theta);
+    arrow.vy -= 3*Math.sin(arrow.theta);
+    
+    // set a limit on the velocity
+    var vMag = Math.sqrt(arrow.vx*arrow.vx + arrow.vy*arrow.vy);
+    if (vMag > 15) {
+      arrow.vx *= 15/vMag;
+      arrow.vy *= 15/vMag;
+    }
+  }
+});
+
 
 function Arrow() {
   this.x = 160;
@@ -64,42 +66,23 @@ function Arrow() {
   this.init = function() {
     this.arrow = new Sprite("arrow", this.x, this.y);
     this.arrow.show();
+    wait(1000);
   };
   
   this.init();
 }
 
 
-
-var sprites = {};
-readRecords("sprites", {}, function(records) {
-  sprites = {};
-  var json = "";
-
-  for (var i=0; i<records.length; i++) {
-    var curr = records[i];
-    var next = i+1<records.length ? records[i+1] : null;
-
-    json += records[i].data;
-
-    if (next === null || curr.name != next.name) {
-      sprites[curr.name] = JSON.parse(json);
-      json = "";
-    }
-  }
-  
-  onLoad();
-});
-
-function Sprite(spriteName, x, y) {
+function Sprite(name, x, y, angle, width, height) {
   this.x = x == null ? 0 : x;
   this.y = y == null ? 0 : y;
+  this.angle = angle == null ? 0 : angle;
+  this.width = width == null ? SPRITE_SIZES[name][0] : width;
+  this.height = height == null ? SPRITE_SIZES[name][1] : height;
   
   this.id;
   this.halfWidth;
   this.halfHeight;
-
-  this.angle = 0;
   
   this.show = function() {
     showElement(this.id);
@@ -118,10 +101,9 @@ function Sprite(spriteName, x, y) {
   this.setPosition = function(newX, newY) {
     this.x = newX;
     this.y = newY;
-    
-    setPosition(this.id, this.x-this.halfWidth, this.y-this.halfHeight);
+    setPosition(this.id, this.x-this.width/2, this.y-this.height/2);
   };
-  
+
   this.getAngle = function() {
     return this.angle;
   };
@@ -131,25 +113,25 @@ function Sprite(spriteName, x, y) {
     setStyle(this.id, "transform: rotate("+ (-this.angle) +"rad);");
   };
   
-  this.init = function(spriteName) {
-    // read data about the canvas
-    this.id = randomNumber(0, 999999999).toString();
-    var spriteData = sprites[spriteName];
-    this.halfWidth = spriteData.width/2;
-    this.halfHeight = spriteData.height/2;
-
-    // create the canvas
-    createCanvas(this.id, spriteData.width, spriteData.height);
-    this.hide();
+  this.init = function(name) {
+    this.id = randomNumber(999999999).toString();
     
-    // set up attributes about the canvas
-    setStyle(this.id, "z-index: 999;"); // put it on the top
+    image(this.id, name+".png");
+    this.hide();
+
+    setSize(this.id, this.width, this.height); // the size of an image defaults to null
+    
+    this.setAngle(this.angle);
     this.setPosition(this.x, this.y);
     
-    // actually draw the data to the screen
-    setActiveCanvas(this.id);
-    putImageData(spriteData, 0, 0);
   };
-  
-  this.init(spriteName);
+
+  this.init(name);
 }
+
+function wait(delay) {
+  var end = getTime()+delay;
+  while (end > getTime()) {}
+}
+
+
